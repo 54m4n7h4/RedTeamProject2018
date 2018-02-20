@@ -1,6 +1,6 @@
 package main
 
-import ("github.com/sparrc/go-ping"
+import ("github.com/tatsushid/go-fastping"
 		"golang.org/x/crypto/ssh"
 		"fmt"
 		"time"
@@ -8,8 +8,12 @@ import ("github.com/sparrc/go-ping"
 		"os"
 		"log"
 		"bufio"
-		"strconv")
+		"strconv"
+		"net"
+		"runtime")
+
 func main() {
+	myos := runtime.GOOS
 	var user []string = readinfile("user.txt")
 	var passwds []string = readinfile("passwds.txt")
 	var subnets []string = readinfile("subnets.txt")
@@ -31,15 +35,40 @@ func main() {
 	for i := 0; i < len(subnets); i++ {
 		for l := start; l <= stop; l=l+stepval{
 			myip = joinstrings(subnets[i],strconv.Itoa(int(l)))
+			var iswin bool = false
 			if checkip(myip){
 				fmt.Println("Ping Works For IP %s", myip)
+			n := 0
 			for j := 0; j < len(user); j++ {
 				for k := 0; k < len(passwds); k++ {
-					if len(getinlinux(myip, user[j], passwds[k]))!=2{
+					if !(iswin) {
+						n = len(getinlinux(myip, user[j], passwds[k]))
+					} 
+					if n == 3 {
 						fmt.Println("ssh works for %s with user:%s and pass:%s", myip,user[j],passwds[k] )
 						passbreak = true
 						break
-					} else{
+					} 
+					if n == 1{
+						iswin = true
+					} 
+					if iswin{
+						if  myos == "windows"{
+							wincon := getinwin(myip, user[j],passwds[k])
+							if wincon {
+								fmt.Println("Im in windows with", myip, user[j], passwds[k])
+								passbreak = true
+								break
+							} else{
+								fmt.Println("didnt work windows with", myip ,user[j], passwds[k])
+							}
+						} else{
+							fmt.Println("cant get onto windows from nonwindows :(")
+							passbreak = true
+							break
+						}
+					} 
+					if n == 2{
 						fmt.Println("ssh doesn't work for %s with user:%s and pass:%s", myip,user[j],passwds[k] )
 					} 
 				}
@@ -48,7 +77,7 @@ func main() {
 					break
 				}
 			}
-			}else{
+			} else{
 				fmt.Println("Ping Doesn't Work For IP %s", myip)
 			}
 		}
@@ -57,21 +86,24 @@ func main() {
 
 func checkip(myip string) (ipworks bool){
 	ipworks = false
-
-	pinger, err := ping.NewPinger(myip)
+	p := fastping.NewPinger()
+	ra, err := net.ResolveIPAddr("ip4:icmp", myip)
 	if err != nil {
-	        panic(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
-	pinger.Count = 1
-	pinger.Timeout = time.Second
-	pinger.OnRecv = func(pkt *ping.Packet) {
-	        fmt.Printf("%d bytes from %s: icmp_seq=%d time=%v\n",
-	                pkt.Nbytes, pkt.IPAddr, pkt.Seq, pkt.Rtt)
-	        ipworks = true
-}
-
-	fmt.Printf("PING %s (%s):\n", pinger.Addr(), pinger.IPAddr())
-	pinger.Run()
+	p.AddIPAddr(ra)
+	p.OnRecv = func(addr *net.IPAddr, rtt time.Duration) {
+		ipworks = true
+		return
+	}
+	p.OnIdle = func() {
+		return
+	}
+	err = p.Run()
+	if err != nil {
+		fmt.Println(err)
+	}
 	return
 }
 
@@ -88,8 +120,11 @@ func getinlinux(myip string, user string, passwd string) (myreturn string){
 	connection, err := ssh.Dial("tcp", dest, sshConfig)
 	if err != nil {
 		fmt.Println(err)
-		return "no"
-
+		if strings.Contains(err.Error(), "unable to authenticate") {
+			return "no"
+		} else{
+			return "w"
+		}
 	}
 	session, err := connection.NewSession()
 	if err != nil {
@@ -110,6 +145,11 @@ func getinlinux(myip string, user string, passwd string) (myreturn string){
 
 	err = session.Run("ls -l $LC_USR_DIR")
 	return "yes"
+}
+
+func getinwin(myip string, user string, passwd string) (wincon bool) {
+	wincon = false
+	return
 }
 
 func joinstrings(string1, string2 string) (mashstring string){
